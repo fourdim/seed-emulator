@@ -42,6 +42,7 @@ class Base(Layer, Graphable):
     __ixes: Dict[int, InternetExchange]
 
     __name_servers: List[str]
+    __install_ca_certs: bool
 
     def __init__(self):
         """!
@@ -51,6 +52,7 @@ class Base(Layer, Graphable):
         self.__ases = {}
         self.__ixes = {}
         self.__name_servers = []
+        self.__install_ca_certs = False
 
     def getName(self) -> str:
         return "Base"
@@ -60,6 +62,8 @@ class Base(Layer, Graphable):
         for asobj in self.__ases.values():
             if len(asobj.getNameServers()) == 0:
                 asobj.setNameServers(self.__name_servers)
+            if self.__install_ca_certs:
+                asobj.installCACerts()
 
             asobj.registerNodes(emulator)
 
@@ -108,6 +112,15 @@ class Base(Layer, Graphable):
         @returns list of IP addresses of recursive name servers
         """
         return self.__name_servers
+    
+    def installCACerts(self) -> Base:
+        """!
+        @brief Install CA certificates on all nodes.
+
+        @returns self, for chaining API calls.
+        """
+        self.__install_ca_certs = True
+        return self
 
     def createAutonomousSystem(self, asn: int) -> AutonomousSystem:
         """!

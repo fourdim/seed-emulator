@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 
+# from seedemu.utilities.UseDocker import useDocker
+
+# useDocker(__file__)
+
 from seedemu.compiler import Docker
 from seedemu.core import Binding, Emulator, Filter, Action
 from seedemu.layers import Base, Ebgp, Ibgp, Ospf, Routing, PeerRelationship
@@ -40,7 +44,6 @@ as150.createNetwork('net0')
 as150.createRouter('router0').joinNetwork('net0').joinNetwork('ix100')
 for i in range(6):
     host = as150.createHost('host_{}'.format(i)).joinNetwork('net0')
-    ca.installCACertOn(host)
 # Do not install the CA cert on the CA host
 host_ca = as150.createHost('ca').joinNetwork('net0', address='10.150.0.7')
 
@@ -49,12 +52,11 @@ as151.createNetwork('net0')
 as151.createRouter('router0').joinNetwork('net0').joinNetwork('ix101')
 for i in range(2):
     host = as151.createHost('host_{}'.format(i)).joinNetwork('net0')
-    ca.installCACertOn(host)
 host_web = as151.createHost('web').joinNetwork('net0', address='10.151.0.7')
-ca.installCACertOn(host_web)
 
 webServer: WebServer = web.install('web-vnode')
-webServer.enableHttps(['user.internal'])
+webServer.setServerNames(['user.internal'])
+webServer.enableHTTPS(ca.enableHTTPSFunc)
 emu.addBinding(Binding('ca-vnode', filter=Filter(nodeName='ca'), action=Action.FIRST))
 emu.addBinding(Binding('web-vnode', filter=Filter(nodeName='web'), action=Action.FIRST))
 
@@ -114,6 +116,7 @@ emu.addBinding(Binding('global-dns', filter = Filter(asn=151, nodeName="local-dn
 
 # Add 10.153.0.53 as the local DNS server for all the other nodes
 base.setNameServers(['10.151.0.53'])
+base.installCACerts()
 
 # Add the ldns layer
 emu.addLayer(ldns)

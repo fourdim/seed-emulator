@@ -1,6 +1,6 @@
 from __future__ import annotations
 from seedemu.core import Node, Service, Server
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 WebServerFileTemplates: Dict[str, str] = {}
 
@@ -50,9 +50,10 @@ class WebServer(Server):
         """
         super().__init__()
         self.__port = 80
-        self.__https = False
-        self.__serverName = ['_']
+        self._server_name = ['_']
         self.__index = '<h1>{nodeName} at {asn}</h1>'
+        self.__enable_https = False
+        self.__enable_https_func = None
         
 
     def setPort(self, port: int) -> WebServer:
@@ -80,15 +81,26 @@ class WebServer(Server):
 
         return self
     
-    def enableHttps(self, serverNames: List[str], caDomain: str = 'ca.internal') -> WebServer:
+    def setServerNames(self, serverNames: List[str]) -> WebServer:
         """!
-        @brief Enable HTTPS.
+        @brief Set server names.
+
+        @param serverNames list of server names.
 
         @returns self, for chaining API calls.
         """
-        self.__https = True
-        self.__serverName = serverNames
-        self.__caDomain = caDomain
+        self._server_name = serverNames
+
+        return self
+    
+    def enableHTTPS(self, enableHTTPSFunc: Callable[[Node, WebServer], None]) -> WebServer:
+        """!
+        @brief Enable TLS.
+
+        @returns self, for chaining API calls.
+        """
+        self.__enable_https = True
+        self.__enable_https_func = enableHTTPSFunc
         return self
     
     def install(self, node: Node):
@@ -97,19 +109,11 @@ class WebServer(Server):
         """
         node.addSoftware('nginx-light')
         node.setFile('/var/www/html/index.html', self.__index.format(asn = node.getAsn(), nodeName = node.getName()))
-        node.setFile('/etc/nginx/sites-available/default', WebServerFileTemplates['nginx_site'].format(port = self.__port, serverName = ' '.join(self.__serverName)))
+        node.setFile('/etc/nginx/sites-available/default', WebServerFileTemplates['nginx_site'].format(port = self.__port, serverName = ' '.join(self._server_name)))
         node.appendStartCommand('service nginx start')
         node.appendClassName("WebService")
-        if self.__https:
-            node.addSoftware('certbot').addSoftware('python3-certbot-nginx').addSoftware('cron')
-            # wait for the name server
-            node.setFile('/etc/cron.d/certbot', WebServerFileTemplates['certbot_renew_cron'])
-            node.appendStartCommand('until dig {} | grep "status: NOERROR" > /dev/null ; do echo "DNS status: SERVFAIL Retry in 2 sec" && sleep 2; done'.format(self.__caDomain))
-            node.appendStartCommand('REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-certbot --server https://{caDomain}/acme/acme/directory --non-interactive --nginx --no-redirect --agree-tos --email example@example.com \
--d {serverName} > /dev/null && echo "ACME: cert issued"'.format(serverName = ' -d '.join(self.__serverName), caDomain = self.__caDomain))
-            node.appendStartCommand('sed \'s/^#\? \?renew_before_expiry = .*$/renew_before_expiry = 8hours/\' -i /etc/letsencrypt/renewal/*.conf')
-            node.appendStartCommand('crontab /etc/cron.d/certbot && service cron start')
+        if self.__enable_https:
+            self.__enable_https_func(node, self)
 
     def print(self, indent: int) -> str:
         out = ' ' * indent
