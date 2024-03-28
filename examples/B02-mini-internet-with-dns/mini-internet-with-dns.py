@@ -61,9 +61,9 @@ emu.addBinding(Binding('global-dns-2', filter = Filter(asn=153, nodeName="local-
 # Add 10.152.0.53 as the local DNS server for AS-160 and AS-170
 # Add 10.153.0.53 as the local DNS server for all the other nodes
 # We can also set this for individual nodes
-base.getAutonomousSystem(160).setNameServers(['10.152.0.53'])
-base.getAutonomousSystem(170).setNameServers(['10.152.0.53'])
-base.setNameServers(['10.153.0.53'])
+ldns.setNameServers(['10.152.0.53'], Filter(asn=160))
+ldns.setNameServers(['10.152.0.53'], Filter(asn=170))
+ldns.setNameServers(['10.153.0.53'])
 
 # Add the ldns layer
 emu.addLayer(ldns)

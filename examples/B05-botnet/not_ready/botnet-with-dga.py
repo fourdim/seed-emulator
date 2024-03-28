@@ -46,7 +46,7 @@ ldns.install('global-dns')
 emu.addBinding(Binding('global-dns', filter = Filter(nodeName = 'gdns', ip = '10.153.0.53'), action = Action.NEW))
 
 # mini dns infra: step 4: make everyone use the said recursive server
-emu.getLayer('Base').setNameServers(['10.153.0.53'])
+ldns.setNameServers(['10.153.0.53'])
 
 # create and bind bot controller
 bot.install('bot_controller')

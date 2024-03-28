@@ -56,6 +56,7 @@ class Base(Layer, Graphable):
         return "Base"
 
     def configure(self, emulator: Emulator):
+        super().configure(emulator)
         self._log('registering nodes...')
         for asobj in self.__ases.values():
             if len(asobj.getNameServers()) == 0:
@@ -90,6 +91,9 @@ class Base(Layer, Graphable):
 
     def setNameServers(self, servers: List[str]) -> Base:
         """!
+        @deprecated to be removed in future version. use
+        world.apply(lambda node: dns.setNameServers(node, ["1.14.5.14"])) instead.
+
         @brief set recursive name servers to use on all nodes. Can be override
         by calling setNameServers at AS level or node level.
 
@@ -103,6 +107,8 @@ class Base(Layer, Graphable):
 
     def getNameServers(self) -> List[str]:
         """!
+        @deprecated to be removed in future version.
+
         @brief get configured recursive name servers for all nodes.
 
         @returns list of IP addresses of recursive name servers

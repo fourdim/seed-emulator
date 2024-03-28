@@ -1,5 +1,5 @@
 from __future__ import annotations
-from seedemu.core import Configurable, Service, Server
+from seedemu.core import Configurable, Filter, Service, Server
 from seedemu.core import Node, ScopedRegistry, Emulator
 from .DomainNameService import DomainNameService
 from typing import List, Dict
@@ -139,6 +139,7 @@ class DomainNameCachingService(Service):
     """
 
     __auto_root: bool
+    __pending_set_name_servers_nodes: List[Node] = []
 
     def __init__(self, autoRoot: bool = True):
         """!
@@ -163,6 +164,27 @@ class DomainNameCachingService(Service):
     def getConflicts(self) -> List[str]:
         return ['DomainNameService']
 
+    def setNameServers(self, servers: List[str], filter: Filter = None, override: bool = False):
+        """!
+        @brief set recursive name servers to the given node.
+
+        @param node node.
+
+        @param servers list of IP addresses of recursive name servers.
+
+        @param override override the existing name servers that are set before.
+        """
+
+        if len(servers) == 0:
+            return
+        def setNameServersGlobally(node: Node):
+            if node.getAttribute('name_servers') and not override:
+                return
+            node.setAttribute('name_servers', servers)
+            if node not in self.__pending_set_name_servers_nodes:
+                self.__pending_set_name_servers_nodes.append(node)
+        self._apply(setNameServersGlobally, filter)
+
     def configure(self, emulator: Emulator):
         super().configure(emulator)
 
@@ -176,6 +198,12 @@ class DomainNameCachingService(Service):
             root_servers = root_zone.getGuleRecords()
             for (server, node) in targets:
                 server.setRootServers(root_servers)
+        
+        for node in self.__pending_set_name_servers_nodes:
+            node.insertStartCommand(0,': > /etc/resolv.conf')
+            for idx, s in enumerate(node.getAttribute('name_servers'), start=1):
+                node.insertStartCommand(idx, 'echo "nameserver {}" >> /etc/resolv.conf'.format(s))
+
 
     def print(self, indent: int) -> str:
         out = ' ' * indent

@@ -46,7 +46,7 @@ as153.createHost('local-dns-1').joinNetwork('net0', address = '10.153.0.53')
 emu.addBinding(Binding('global-dns-1', filter = Filter(asn=153, nodeName="local-dns-1")))
 
 # Add 10.153.0.53 as the local DNS server for all the other nodes
-base.setNameServers(['10.153.0.53'])
+ldns.setNameServers(['10.153.0.53'])
 
 # Add the ldns layer
 emu.addLayer(ldns)
