@@ -8,7 +8,7 @@
 from seedemu.compiler import Docker
 from seedemu.core import Binding, Emulator, Filter, Action
 from seedemu.layers import Base, Ebgp, Ibgp, Ospf, Routing, PeerRelationship
-from seedemu.services import DomainNameCachingService, DomainNameService, CAService, WebService, WebServer
+from seedemu.services import DomainNameCachingService, DomainNameService, CAService, WebService, WebServer, RootCAStore
 
 emu = Emulator()
 base = Base()
@@ -16,7 +16,8 @@ routing = Routing()
 ebgp = Ebgp()
 ibgp = Ibgp()
 ospf = Ospf()
-ca = CAService('ca.internal')
+caStore = RootCAStore(caDomain='ca.internal')
+ca = CAService(caStore)
 web = WebService()
 
 ###########################################################
@@ -38,6 +39,7 @@ as2.createRouter('r1').joinNetwork('net0').joinNetwork('ix100')
 as2.createRouter('r2').joinNetwork('net0').joinNetwork('ix101')
 
 ca.install('ca-vnode')
+ca.installCACert()
 
 as150 = base.createAutonomousSystem(150)
 as150.createNetwork('net0')
@@ -56,7 +58,7 @@ host_web = as151.createHost('web').joinNetwork('net0', address='10.151.0.7')
 
 webServer: WebServer = web.install('web-vnode')
 webServer.setServerNames(['user.internal'])
-webServer.enableHTTPS(ca.enableHTTPSFunc)
+webServer.getCertificatesFrom(ca).enableHTTPS()
 emu.addBinding(Binding('ca-vnode', filter=Filter(nodeName='ca'), action=Action.FIRST))
 emu.addBinding(Binding('web-vnode', filter=Filter(nodeName='web'), action=Action.FIRST))
 
@@ -116,7 +118,6 @@ emu.addBinding(Binding('global-dns', filter = Filter(asn=151, nodeName="local-dn
 
 # Add 10.153.0.53 as the local DNS server for all the other nodes
 base.setNameServers(['10.151.0.53'])
-base.installCACerts()
 
 # Add the ldns layer
 emu.addLayer(ldns)

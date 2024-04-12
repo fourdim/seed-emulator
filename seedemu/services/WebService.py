@@ -1,6 +1,8 @@
 from __future__ import annotations
 from seedemu.core import Node, Service, Server
-from typing import Callable, Dict, List
+from typing import Dict, List
+
+from seedemu.services import CAService
 
 WebServerFileTemplates: Dict[str, str] = {}
 
@@ -93,14 +95,24 @@ class WebServer(Server):
 
         return self
     
-    def enableHTTPS(self, enableHTTPSFunc: Callable[[Node, WebServer], None]) -> WebServer:
+    def getCertificatesFrom(self, ca: CAService) -> WebServer:
+        """!
+        @brief Get certificates from a CA.
+
+        @param ca CA service.
+
+        @returns self, for chaining API calls.
+        """
+        self.__enable_https_func = ca.enableHTTPSFunc
+        return self
+    
+    def enableHTTPS(self) -> WebServer:
         """!
         @brief Enable TLS.
 
         @returns self, for chaining API calls.
         """
         self.__enable_https = True
-        self.__enable_https_func = enableHTTPSFunc
         return self
     
     def install(self, node: Node):

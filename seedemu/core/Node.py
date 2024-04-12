@@ -272,7 +272,6 @@ class Node(Printable, Registrable, Configurable, Vertex):
         #     self.__softwares.add(soft)
 
         self.__name_servers = []
-        self.__install_ca_cert = False
 
     def configure(self, emulator: Emulator):
         """!
@@ -327,12 +326,6 @@ class Node(Printable, Registrable, Configurable, Vertex):
                 self.__joinNetwork(reg.register('xc', 'net', netname, net), str(localaddr.ip))
                 self.__xcs[(peername, peerasn)] = (localaddr, netname)
 
-        if self.__install_ca_cert:
-            self.addSoftware('ca-certificates')
-            root = Path(__file__).parent.parent.parent
-            self.importFile(os.path.join(root, 'misc/CA/.step/certs/root_ca.crt'), '/usr/local/share/ca-certificates/SEEDEMU_Internal_Root_CA.crt')
-            self.appendStartCommand('update-ca-certificates')
-
         if len(self.__name_servers) == 0:
             return
 
@@ -366,18 +359,6 @@ class Node(Printable, Registrable, Configurable, Vertex):
         assert not self.__asn == 0, 'This API is only available on a real physical node.'
 
         return self.__name_servers
-    
-    def installCACert(self) -> Node:
-        """!
-        @brief Install CA certs on this node.
-
-        @returns self, for chaining API calls.
-        """
-        assert not self.__asn == 0, 'This API is only available on a real physical node.'
-
-        self.__install_ca_cert = True
-
-        return self
 
     def addPort(self, host: int, node: int, proto: str = 'tcp') -> Node:
         """!

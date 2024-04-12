@@ -45,7 +45,6 @@ class AutonomousSystem(Printable, Graphable, Configurable):
         self.__asn = asn
         self.__subnets = None if asn > 255 else list(IPv4Network(subnetTemplate.format(asn)).subnets(new_prefix = 24))
         self.__name_servers = []
-        self.__install_ca_certs = False
 
     def setNameServers(self, servers: List[str]) -> AutonomousSystem:
         """!
@@ -69,15 +68,6 @@ class AutonomousSystem(Printable, Graphable, Configurable):
         @returns list of IP addresses of recursive name servers
         """
         return self.__name_servers
-    
-    def installCACerts(self) -> AutonomousSystem:
-        """!
-        @brief Install CA certificates on all nodes.
-
-        @returns self, for chaining API calls.
-        """
-        self.__install_ca_certs = True
-        return self
 
     def getPrefixList(self) -> List[str]:
         """!
@@ -138,16 +128,12 @@ class AutonomousSystem(Printable, Graphable, Configurable):
         for host in self.__hosts.values():
             if len(host.getNameServers()) == 0:
                 host.setNameServers(self.__name_servers)
-            if self.__install_ca_certs:
-                host.installCACert()
             
             host.configure(emulator)
         
         for router in self.__routers.values():
             if len(router.getNameServers()) == 0:
                 router.setNameServers(self.__name_servers)
-            if self.__install_ca_certs:
-                router.installCACert()
 
             router.configure(emulator)
 
