@@ -4,12 +4,14 @@ from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_add
 import os
 import re
 import secrets
+import shutil
 import string
 import subprocess
 import tempfile
 from typing import Dict, TYPE_CHECKING, Iterable
 
 from seedemu.core.Emulator import Emulator
+from seedemu.utilities import BuildtimeDockerImage
 
 if TYPE_CHECKING:
     from seedemu.services.WebService import WebServer
@@ -239,6 +241,7 @@ def cd(path):
 
 
 def sh(command, input=None):
+    """@private"""
     try:
         if isinstance(command, list):
             command = " ".join(command)
@@ -251,92 +254,6 @@ def sh(command, input=None):
     except subprocess.CalledProcessError as e:
         return e.returncode
 
-def createCARootCert(caDir: str, caDomain: str = "ca.internal"):
-    """!
-    @brief Create a CA directory.
-    @deprecated Use RootCAStore instead.
-
-    @param caDir The absolute path to the directory to create.
-    """
-    if not os.path.exists(caDir):
-        os.makedirs(caDir)
-    with cd(caDir):
-        sh('tr -dc "A-Za-z0-9" < /dev/urandom | head -c 64 > password.txt')
-        sh(f'docker run -it --rm -v {caDir}:/root -e STEPPATH=/root/.step --entrypoint step smallstep/step-ca ca init --deployment-type "standalone" --name "SEEDEMU Internal" \
---dns "{caDomain}" --address ":443" --provisioner "admin" --with-ca-url "https://{caDomain}" \
---password-file password.txt --provisioner-password-file password.txt --acme')
-
-
-class RuntimeDockerFile:
-    def __init__(self, content: str):
-        self.__content = content
-
-    def getContent(self) -> str:
-        return self.__content
-
-
-class RuntimeDockerImage:
-    def __init__(self, imageName: str):
-        self.__imageName = imageName
-
-    def build(
-        self,
-        dockerfile: RuntimeDockerFile,
-        context: str = None,
-        args: Dict[str, str] = None,
-    ):
-        if not context:
-            context = tempfile.mkdtemp(prefix="seedemu-docker-")
-        with cd(context):
-            build_command = f"docker build -t {self.__imageName}"
-            for arg, value in args.items():
-                build_command += f" --build-arg {arg}={value}"
-            sh(build_command + " -", input=dockerfile.getContent())
-        return self
-
-    def container(self):
-        return BuildtimeDockerContainer(self.__imageName)
-
-
-class BuildtimeDockerContainer:
-    def __init__(self, imageName: str):
-        self.__imageName = imageName
-        self.__volumes = []
-        self.__env = []
-        self.__entrypoint = None
-        self.__workdir = None
-
-    def mountVolume(self, source: str, target: str):
-        self.__volumes.append((source, target))
-        return self
-
-    def env(self, envName: str, envValue: str):
-        self.__env.append((envName, envValue))
-        return self
-
-    def workdir(self, workdir: str):
-        self.__workdir = workdir
-        return self
-
-    def entrypoint(self, entrypoint: str):
-        self.__entrypoint = entrypoint
-        return self
-
-    def run(self, command: str = None):
-        run_command = "docker run -it --rm"
-        if self.__workdir:
-            run_command += f" -w {self.__workdir}"
-        for key, value in self.__env:
-            run_command += f" -e {key}={value}"
-        if self.__entrypoint:
-            run_command += f" --entrypoint {self.__entrypoint}"
-        for source, target in self.__volumes:
-            run_command += f" -v {source}:{target}"
-        run_command += f" {self.__imageName}"
-        if command:
-            run_command += f" {command}"
-        sh(run_command)
-
 
 class RootCAStore:
     def __init__(self, caDomain: str = "ca.internal"):
@@ -348,7 +265,7 @@ class RootCAStore:
         self.__initialized = False
         self.__pendingRootCertAndKey = None
         with cd(self.__caDir):
-            self.__container = RuntimeDockerImage("smallstep/step-ca").container()
+            self.__container = BuildtimeDockerImage("smallstep/step-ca").container()
             self.__container.mountVolume(self.__caDir, "/root").env(
                 "STEPPATH", "/root/.step"
             ).entrypoint(
@@ -367,8 +284,8 @@ class RootCAStore:
         if self.__initialized:
             raise RuntimeError("The CA store is already initialized.")
         with cd(self.__caDir):
-            sh(f"cp {rootCertPath} root_ca.crt")
-            sh(f"cp {rootKeyPath} root_ca_key")
+            shutil.copyfile(rootCertPath, "root_ca.crt")
+            shutil.copyfile(rootKeyPath, "root_ca_key")
         self.__pendingRootCertAndKey = (f"{self.__caDir}/root_ca.crt", f"{self.__caDir}/root_ca_key")
     
     def initialize(self):
@@ -385,15 +302,14 @@ class RootCAStore:
 --password-file /root/password.txt --provisioner-password-file /root/password.txt --acme'
             self.__container.run(initialize_command)
         self.__initialized = True
-    
+
     def save(self, path: str):
         if not self.__initialized:
             raise RuntimeError("The CA store is not initialized.")
-        with cd(self.__caDir):
-            sh(f"cp -r . {path}")
+        shutil.copytree(self.__caDir, path)
 
-
-
-
-if __name__ == "__main__":
-    print(RootCAStore().getStorePath())
+    def restore(self, path: str):
+        if self.__initialized:
+            raise RuntimeError("The CA store is already initialized.")
+        shutil.copytree(path, self.__caDir)
+        self.__initialized = True
