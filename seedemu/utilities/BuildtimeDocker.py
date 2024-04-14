@@ -6,7 +6,7 @@ from typing import Dict
 
 @contextmanager
 def cd(path):
-    """@private"""
+    """@private Not supposed to be imported. Any other module should not rely on this function."""
     old_cwd = os.getcwd()
     os.chdir(path)
     try:
@@ -16,7 +16,7 @@ def cd(path):
 
 
 def sh(command, input=None):
-    """@private"""
+    """@private Not supposed to be imported. Any other module should not rely on this function."""
     try:
         if isinstance(command, list):
             command = " ".join(command)

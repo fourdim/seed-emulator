@@ -8,7 +8,7 @@ import shutil
 import string
 import subprocess
 import tempfile
-from typing import Dict, TYPE_CHECKING, Iterable
+from typing import Dict, TYPE_CHECKING, Iterable, List
 
 from seedemu.core.Emulator import Emulator
 from seedemu.utilities import BuildtimeDockerImage
@@ -44,9 +44,12 @@ def ipsInNetwork(ips: Iterable, network: str) -> bool:
     """!
     @brief Check if any of the IPs in the iterable is in the network.
     This function supports both IPv4 and IPv6 via IPv4-Mapped IPv6 Address.
+
     @param ips The iterable of IPs.
+
     @param network The network.
-    @return True if any of the IPs is in the network, False otherwise.
+
+    @returns True if any of the IPs is in the network, False otherwise.
     """
     net = ip_network(network)
     map6to4 = int(IPv6Address('::ffff:0:0'))
@@ -67,34 +70,28 @@ def ipsInNetwork(ips: Iterable, network: str) -> bool:
     return False
 
 class CAServer(Server):
-    def __init__(self, duration: str, caStore: RootCAStore):
+    def __init__(self, duration: str, caStore: RootCAStore, step_version: str):
         super().__init__()
         self.__duration = duration
-        self.__caStore = caStore
+        self.__ca_store = caStore
+        self._step_version = step_version
 
     def install(self, node: Node):
+        """!
+        @brief Install the CA on the node.
+        """
         node.addSoftware("ca-certificates")
         node.addBuildCommand(
-            "\
+            f"\
 if uname -m | grep x86_64 > /dev/null; then \
-curl -O -L https://github.com/smallstep/certificates/releases/download/v0.25.2/step-ca_0.25.2_amd64.deb && \
-apt install -y ./step-ca_0.25.2_amd64.deb; \
+curl -O -L https://github.com/smallstep/certificates/releases/download/v{self._step_version}/step-ca_{self._step_version}_amd64.deb && \
+apt install -y ./step-ca_{self._step_version}_amd64.deb; \
 else \
-curl -O -L https://github.com/smallstep/certificates/releases/download/v0.25.2/step-ca_0.25.2_arm64.deb && \
-apt install -y ./step-ca_0.25.2_arm64.deb; \
+curl -O -L https://github.com/smallstep/certificates/releases/download/v{self._step_version}/step-ca_{self._step_version}_arm64.deb && \
+apt install -y ./step-ca_{self._step_version}_arm64.deb; \
 fi"
         )
-        node.addBuildCommand(
-            "\
-if uname -m | grep x86_64 > /dev/null; then \
-curl -O -L https://github.com/smallstep/cli/releases/download/v0.25.2/step-cli_0.25.2_amd64.deb && \
-apt install -y ./step-cli_0.25.2_amd64.deb; \
-else \
-curl -O -L https://github.com/smallstep/cli/releases/download/v0.25.2/step-cli_0.25.2_arm64.deb && \
-apt install -y ./step-cli_0.25.2_arm64.deb; \
-fi"
-        )
-        self.__caDir = self.__caStore.getStorePath()
+        self.__caDir = self.__ca_store.getStorePath()
         for root, _, files in os.walk(self.__caDir):
             for file in files:
                 node.importFile(
@@ -128,18 +125,19 @@ class CAService(Service):
 
     def __init__(self, caStore: RootCAStore):
         """!
-        @brief create a new CA layer.
+        @brief create a new CA service which will setup the PKI infrastructure.
 
-        @param domain CA domain name.
+        @param caStore The RootCAStore object.
         """
         super().__init__()
         self.addDependency("DomainNameService", False, False)
         self.addDependency("Routing", False, False)
-        self.__caStore = caStore
-        self.__caStore.initialize()
-        self.__caDomain = self.__caStore._caDomain
+        self.__ca_store = caStore
+        self.__ca_store.initialize()
+        self.__ca_domain = self.__ca_store._caDomain
         self.__duration = "24h"
-        self.__filter = None
+        self.__filters: List[Filter | None] = []
+        self._step_version = "0.26.0"
 
     def setCertDuration(self, duration: str) -> CAService:
         """!
@@ -160,12 +158,25 @@ class CAService(Service):
         return "CertificateAuthority"
 
     def getCADomain(self) -> str:
-        return self.__caDomain
+        """!
+        @brief Get the CA domain name.
+
+        @returns The CA domain name.
+        """
+        return self.__ca_domain
 
     def _createServer(self) -> Server:
-        return CAServer(self.__duration, self.__caStore)
+        return CAServer(self.__duration, self.__ca_store, self._step_version)
 
     def enableHTTPSFunc(self, node: Node, web: WebServer):
+        """!
+        @brief Enable HTTPS for the web server.
+        This is not supposed to be called directly. The WebService will call this function.
+
+        @param node The node to enable HTTPS.
+
+        @param web The web server to enable HTTPS.
+        """
         node.addSoftware("certbot").addSoftware("python3-certbot-nginx").addSoftware(
             "cron"
         )
@@ -173,7 +184,7 @@ class CAService(Service):
         node.setFile("/etc/cron.d/certbot", CaFileTemplates["certbot_renew_cron"])
         node.appendStartCommand(
             'until curl https://{}/acme/acme/directory > /dev/null ; do echo "Network retry in 2 s" && sleep 2; done'.format(
-                self.__caDomain
+                self.__ca_domain
             )
         )
 
@@ -181,7 +192,7 @@ class CAService(Service):
             'REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
 certbot --server https://{caDomain}/acme/acme/directory --non-interactive --nginx --no-redirect --agree-tos --email example@example.com \
 -d {serverName} > /dev/null && echo "ACME: cert issued"'.format(
-                serverName=" -d ".join(web._server_name), caDomain=self.__caDomain
+                serverName=" -d ".join(web._server_name), caDomain=self.__ca_domain
             )
         )
         node.appendStartCommand(
@@ -189,49 +200,82 @@ certbot --server https://{caDomain}/acme/acme/directory --non-interactive --ngin
         )
         node.appendStartCommand("crontab /etc/cron.d/certbot && service cron start")
 
-    def installCACert(self, filter: Filter = None):   
+    def installCACert(self, filter: Filter = None) -> CAService:
+        """!
+        @brief Install the CA certificate to the nodes that match the filter.
+        Calling these function multiple times will not override the previous filter.
+        ```
+        caService.installCACert(Filter(asn=150))
+        caService.installCACert(Filter(asn=151))
+        # The above code will install the CA certificate to all nodes in ASN 150 and 151.
+        ```
+
+        @param filter The filter to match the nodes. Default is None, which means all nodes.
+
+        @returns self, for chaining API calls.
+        """ 
         # This is possible to do it in runtime
         if filter:
             assert (
                 not filter.allowBound
             ), 'allowBound filter is not supported in the global layer.'
-        self.__filter = filter
+        self.__filters.append(filter)
+        return self
     
     def configure(self, emulator: Emulator):
         super().configure(emulator)
-        allNodesItems = emulator.getRegistry().getAll().items()
-        for (_, type, name), obj in allNodesItems:
+        all_nodes_items = emulator.getRegistry().getAll().items()
+        all_nodes: Dict[Node, bool] = {}
+        for (_, type, name), obj in all_nodes_items:
             if type not in ['rs', 'rnode', 'hnode', 'csnode']:
                 continue
-            node: Node = obj
-            if self.__filter:
-                if self.__filter.asn and self.__filter.asn != node.getAsn():
+            all_nodes[obj] = False
+        if None in self.__filters:
+            self.__filters = [None]
+        for node in all_nodes:
+            node.addBuildCommand(
+            f"\
+if uname -m | grep x86_64 > /dev/null; then \
+curl -O -L https://github.com/smallstep/cli/releases/download/v{self._step_version}/step-cli_{self._step_version}_amd64.deb && \
+apt install -y ./step-cli_{self._step_version}_amd64.deb; \
+else \
+curl -O -L https://github.com/smallstep/cli/releases/download/v{self._step_version}/step-cli_{self._step_version}_arm64.deb && \
+apt install -y ./step-cli_{self._step_version}_arm64.deb; \
+fi"
+        )
+        for filter in self.__filters:
+            for node in all_nodes:
+                if all_nodes[node]:
                     continue
-                if self.__filter.nodeName and not re.compile(self.__filter.nodeName).match(name):
-                    continue
-                if self.__filter.ip and self.__filter.ip not in map(
-                    lambda x: x.getAddress(), node.getInterfaces()
-                ):
-                    continue
-                if self.__filter.prefix:
-                    ips = {
-                        host
-                        for host in map(
-                            lambda x: x.getAddress(), node.getInterfaces()
-                        )
-                    }
-                    if not ipsInNetwork(ips, self.__filter.prefix):
+                if filter:
+                    if filter.asn and filter.asn != node.getAsn():
                         continue
-                if self.__filter.custom and not self.__filter.custom(node.getName(), node):
-                    continue
-            node.addSoftware('ca-certificates')
-            node.importFile(os.path.join(self.__caStore.getStorePath(), '.step/certs/root_ca.crt'), '/usr/local/share/ca-certificates/SEEDEMU_Internal_Root_CA.crt')
-            node.appendStartCommand('update-ca-certificates')
+                    if filter.nodeName and not re.compile(filter.nodeName).match(name):
+                        continue
+                    if filter.ip and filter.ip not in map(
+                        lambda x: x.getAddress(), node.getInterfaces()
+                    ):
+                        continue
+                    if filter.prefix:
+                        ips = {
+                            host
+                            for host in map(
+                                lambda x: x.getAddress(), node.getInterfaces()
+                            )
+                        }
+                        if not ipsInNetwork(ips, filter.prefix):
+                            continue
+                    if filter.custom and not filter.custom(node.getName(), node):
+                        continue
+                node.addSoftware('ca-certificates')
+                node.importFile(os.path.join(self.__ca_store.getStorePath(), '.step/certs/root_ca.crt'), '/usr/local/share/ca-certificates/SEEDEMU_Internal_Root_CA.crt')
+                node.appendStartCommand('update-ca-certificates')
+                all_nodes[node] = True
 
 
 @contextmanager
 def cd(path):
-    """@private"""
+    """@private Not supposed to be imported. Any other module should not rely on this function."""
     old_cwd = os.getcwd()
     os.chdir(path)
     try:
@@ -241,7 +285,7 @@ def cd(path):
 
 
 def sh(command, input=None):
-    """@private"""
+    """@private Not supposed to be imported. Any other module should not rely on this function."""
     try:
         if isinstance(command, list):
             command = " ".join(command)
@@ -257,6 +301,11 @@ def sh(command, input=None):
 
 class RootCAStore:
     def __init__(self, caDomain: str = "ca.internal"):
+        """!
+        @brief Create a new RootCAStore.
+
+        @param caDomain The domain name of the CA.
+        """
         self._caDomain = caDomain
         self.__caDir = tempfile.mkdtemp(prefix="seedemu-ca-")
         self.__password = "".join(
@@ -272,23 +321,52 @@ class RootCAStore:
                 "step"
             )
 
-    def getStorePath(self) -> str: 
+    def getStorePath(self) -> str:
+        """!
+        @brief Get the path of the CA store.
+
+        @returns The path of the CA store.
+        """
         return self.__caDir
     
-    def setPassword(self, password: str):
+    def setPassword(self, password: str)  -> RootCAStore:
+        """!
+        @brief Set the password to decrypt the CA Key if it is provided, otherwise, the password is used to encrypt the CA Key.
+        It must be called before the CA store is initialized.
+
+        @param password The password to encrypt/decrypt the CA Key.
+
+        @returns self, for chaining API calls.
+        """
         if self.__initialized:
             raise RuntimeError("The CA store is already initialized.")
         self.__password = password
+        return self
 
-    def setRootCertAndKey(self, rootCertPath: str, rootKeyPath: str):
+    def setRootCertAndKey(self, rootCertPath: str, rootKeyPath: str) -> RootCAStore:
+        """!
+        @brief Set the root certificate and key for the CA.
+        It must be called before the CA store is initialized.
+
+        @param rootCertPath The path to the root certificate.
+
+        @param rootKeyPath The path to the root key.
+
+        @return self, for chaining API calls.
+        """
         if self.__initialized:
             raise RuntimeError("The CA store is already initialized.")
         with cd(self.__caDir):
             shutil.copyfile(rootCertPath, "root_ca.crt")
             shutil.copyfile(rootKeyPath, "root_ca_key")
         self.__pendingRootCertAndKey = (f"{self.__caDir}/root_ca.crt", f"{self.__caDir}/root_ca_key")
+        return self
     
     def initialize(self):
+        """!
+        @brief Initialize the CA store.
+        User can either call it manually or let the CA service to call it.
+        """
         if self.__initialized:
             return
         with cd(self.__caDir):
@@ -304,11 +382,23 @@ class RootCAStore:
         self.__initialized = True
 
     def save(self, path: str):
+        """!
+        @brief Save the CA store to a directory.
+        It must be called after the CA store is initialized.
+
+        @param path The path to save the CA store.
+        """
         if not self.__initialized:
             raise RuntimeError("The CA store is not initialized.")
         shutil.copytree(self.__caDir, path)
 
     def restore(self, path: str):
+        """!
+        @brief Restore the CA store from a directory.
+        It must be called before the CA store is initialized.
+
+        @param path The path to restore the CA store from.
+        """
         if self.__initialized:
             raise RuntimeError("The CA store is already initialized.")
         shutil.copytree(path, self.__caDir)
