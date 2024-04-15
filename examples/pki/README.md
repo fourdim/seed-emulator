@@ -65,7 +65,7 @@ After enabling HTTPS, the web server will serve HTTPS requests.
 
 ### Demo
 
-On any nodes that have the Root CA certificate installed:
+On any nodes that have the Root CA certificate installed (not router or ix nodes, they might not have dns properly configured):
 
 In this example, as we only set up https for https://user.internal.
 In your case you can set up https for any domain you want.

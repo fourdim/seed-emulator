@@ -101,6 +101,8 @@ $ step certificate inspect /usr/local/share/ca-certificates/SEEDEMU_Internal_Roo
 $ step certificate inspect https://{target_domain}
 ```
 
+Do not use the second command on router or ix nodes, they might not have dns properly configured.
+
 #### Get a standalone certificate without the web server
 
 ```bash

@@ -28,7 +28,7 @@ test_case_list = [
     KuboTestCase,
     KuboUtilFuncsTestCase,
     DottedDictTestCase,
-    PKITestCase
+    PKITestCase,
 ]
 
 for test_case in test_case_list:

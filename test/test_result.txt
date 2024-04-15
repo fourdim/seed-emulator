@@ -1,0 +1,186 @@
+==============================
+internet.mini_internet.MiniInternetTestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+==============================
+pki.PKITestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+build_emulator: succeed
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  -18
+==============================
+pki.PKITestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+build_emulator: succeed
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  18
+==============================
+PKITestCase Test Ends
+==============================
+score: 0 of 2 (0 errors, 2 failures)
+==============================
+internet.mini_internet.MiniInternetTestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+==============================
+pki.PKITestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+build_emulator: succeed
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  18
+==============================
+PKITestCase Test Ends
+==============================
+score: 0 of 2 (0 errors, 2 failures)
+==============================
+internet.mini_internet.MiniInternetTestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+==============================
+pki.PKITestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+build_emulator: succeed
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  18
+==============================
+PKITestCase Test Ends
+==============================
+score: 1 of 2 (0 errors, 1 failures)
+==============================
+internet.mini_internet.MiniInternetTestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+==============================
+pki.PKITestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+build_emulator: succeed
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  18
+==============================
+PKITestCase Test Ends
+==============================
+score: 1 of 2 (0 errors, 1 failures)
+==============================
+internet.mini_internet.MiniInternetTestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+==============================
+pki.PKITestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+build_emulator: succeed
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+==============================
+pki.PKITestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+build_emulator: succeed
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  18
+==============================
+PKITestCase Test Ends
+==============================
+score: 1 of 2 (0 errors, 1 failures)
+==============================
+internet.mini_internet.MiniInternetTestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+==============================
+pki.PKITestCase Start
+==============================
+Generating Emulation Files...
+gen_emulation_files: succeed
+Building Docker Containers...
+build_emulator: succeed
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  0
+--------------------------------------------------
+------ Waiting until all containers up : 17 ------
+current containers counts :  18
+==============================
+PKITestCase Test Ends
+==============================
+score: 2 of 2 (0 errors, 0 failures)
+==============================
+internet.mini_internet.MiniInternetTestCase Start
+==============================
+Generating Emulation Files...
