@@ -183,16 +183,15 @@ class CAService(Service):
         # wait for the name server
         node.setFile("/etc/cron.d/certbot", CaFileTemplates["certbot_renew_cron"])
         node.appendStartCommand(
-            'until curl https://{}/acme/acme/directory > /dev/null ; do echo "Network retry in 2 s" && sleep 2; done'.format(
+            'until curl --silent https://{}/acme/acme/directory > /dev/null ; do echo "Network retry in 2 s" && sleep 2; done'.format(
                 self.__ca_domain
             )
         )
-
         node.appendStartCommand(
             'REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-certbot --server https://{caDomain}/acme/acme/directory --non-interactive --nginx --no-redirect --agree-tos --email example@example.com \
--d {serverName} > /dev/null && echo "ACME: cert issued"'.format(
-                serverName=" -d ".join(web._server_name), caDomain=self.__ca_domain
+certbot --server https://{ca_domain}/acme/acme/directory --non-interactive --nginx --no-redirect --agree-tos --email example@example.com \
+-d {server_name} > /dev/null && echo "ACME: cert issued"'.format(
+                server_name=" -d ".join(web._server_name), ca_domain=self.__ca_domain
             )
         )
         node.appendStartCommand(

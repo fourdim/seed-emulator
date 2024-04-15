@@ -18,26 +18,6 @@ server {{
 }}
 '''
 
-WebServerFileTemplates['certbot_renew_cron'] = '''\
-# /etc/cron.d/certbot: crontab entries for the certbot package
-#
-# Upstream recommends attempting renewal
-#
-# Eventually, this will be an opportunity to validate certificates
-# haven't been revoked, etc.  Renewal will only occur if expiration
-# is within 8 hours.
-#
-# Important Note!  This cronjob will NOT be executed if you are
-# running systemd as your init system.  If you are running systemd,
-# the cronjob.timer function takes precedence over this cronjob.  For
-# more details, see the systemd.timer manpage, or use systemctl show
-# certbot.timer.
-SHELL=/bin/sh
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-
-* */1 * * * root test -x /usr/bin/certbot -a \! -d /run/systemd/system && perl -e 'sleep int(rand(3600))' && REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt certbot -q renew
-'''
-
 class WebServer(Server):
     """!
     @brief The WebServer class.

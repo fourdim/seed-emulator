@@ -258,7 +258,7 @@ class Binding(Printable):
                 has_match = False
                 net = IPv4Network(filter.prefix)
                 for iface in node.getInterfaces():
-                    if iface.getAddress() in net.hosts():
+                    if iface.getAddress() in net:
                         has_match = True
                         break
                 if not has_match:
